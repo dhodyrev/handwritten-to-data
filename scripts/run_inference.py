@@ -68,16 +68,17 @@ def process_one(item: dict, image_root: str | None,
     if cache_path.exists():
         return json.loads(cache_path.read_text())
 
-    if image_root:
-        image_path = str(Path(image_root) / file_name)
-    elif split_for_hf:
-        image_path = materialize_image(split_for_hf, file_name)
-    else:
-        raise RuntimeError("must pass either --image-root or --split (for HF auto-download)")
-
     try:
+        if image_root:
+            image_path = str(Path(image_root) / file_name)
+        elif split_for_hf:
+            image_path = materialize_image(split_for_hf, file_name)
+        else:
+            raise RuntimeError("must pass --image-root or --split/--hf-split")
         result = run_pipeline(image_path, uuid, item.get("source", "unknown"), cfg)
     except Exception as e:
+        # Emit an empty-regions row rather than aborting the whole run on one
+        # missing/broken page (e.g. a single HF 404).
         print(f"ERROR {uuid}: {e}")
         result = {"uuid": uuid, "source": item.get("source", "unknown"), "regions": []}
 
