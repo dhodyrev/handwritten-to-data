@@ -30,7 +30,7 @@ scripts/                    # CLI entrypoints
   score_cv.py               # composite metric on a prediction CSV
 notebooks/
   01_train_lora.ipynb       # Kaggle: train LoRA → push adapter to HF Hub
-  02_inference.ipynb        # Kaggle: install → load → predict → submission.csv
+  02_inference.ipynb        # Kaggle: install → load → predict → submission.csv → auto-submit
 data/cv/                    # committed CV manifests (small JSONL)
 research/                   # reference baselines + EDA notebooks
 ```
@@ -41,15 +41,19 @@ Two Kaggle notebooks, each self-contained (clones this repo on Kaggle, downloads
 
 ### 01. `notebooks/01_train_lora.ipynb` — train LoRA
 
-Uses Unsloth's `FastVisionModel` + TRL's `SFTTrainer` with `UnslothVisionDataCollator`. Trains the transcribe head (LoRA r=16, language layers only — vision encoder stays frozen) on ~30k crops mined from train + cleaned silver, then `model.push_to_hub(...)` to your HF adapter repo.
+Uses Unsloth's `FastVisionModel` + TRL's `SFTTrainer` with `UnslothVisionDataCollator`. Trains the transcribe head (LoRA r=16, language layers only — vision encoder stays frozen) on gold + cleaned-silver crops (~184k examples with `--include-silver`), then `model.push_to_hub(...)` to your HF adapter repo.
 
-Setup: Kaggle Secret `HF_TOKEN` (HF write token) attached to the notebook, GPU T4 ×2, Internet On. Edit the two constants in cell 2 if you fork. Runtime ~6–9h.
+The full set is ~11.5k steps (~38h) — too long for one Kaggle session — so the run is capped at `max_steps=2000` (~7h) with checkpoints every 250 steps. To train on more data, rerun with `trainer.train(resume_from_checkpoint=True)` across successive Commits.
 
-### 02. `notebooks/02_inference.ipynb` — write submission
+Note: Unsloth (open source) is single-GPU, so the second T4 on a `GPU T4 ×2` runtime sits idle — the cap, not the GPU count, is the wall-clock lever.
 
-Loads Qwen2.5-VL-7B-4bit + the LoRA adapter from HF Hub, runs sync detect → transcribe over the competition test set, writes `/kaggle/working/submission.csv`.
+Setup: Kaggle Secret `HF_TOKEN` (HF write token) attached to the notebook, GPU T4 ×2, Internet On. Edit the two constants in cell 2 if you fork. Runtime ~7h.
 
-Attach: `handwritten-to-data` (competition data). For private adapter repos add `HF_TOKEN` secret. Set `HF_ADAPTER_REPO = None` in cell 2 to skip the adapter and submit base-model predictions. Runtime ~4–6h.
+### 02. `notebooks/02_inference.ipynb` — predict + submit
+
+Loads Qwen2.5-VL-7B-4bit + the LoRA adapter from HF Hub, runs sync detect → transcribe over the competition test set, writes `/kaggle/working/submission.csv`, then submits it straight to the competition via the Kaggle API.
+
+Attach: `handwritten-to-data` (competition data). Secrets: `KAGGLE_USERNAME` + `KAGGLE_KEY` (from kaggle.com → Settings → API → _Create New Token_) for the auto-submit step; `HF_TOKEN` only for private adapter repos. Set `HF_ADAPTER_REPO = None` in cell 2 to skip the adapter and submit base-model predictions, or `SUBMIT = False` to only write the CSV. Runtime ~4–6h.
 
 Phase-1 toggles live in `configs/pipeline_p1.yaml`:
 - `postproc.nms_iou: 0.5` — drops duplicate line bboxes

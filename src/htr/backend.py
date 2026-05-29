@@ -64,14 +64,18 @@ def load_model(
 
     log(f"[backend] loading {model_name} (4bit={load_in_4bit})"
         + (f" + adapter {adapter_path}" if adapter_path else ""))
+    # When an adapter is given, load the adapter repo directly: Unsloth reads
+    # base_model_name_or_path from its adapter_config.json and materialises
+    # (base + LoRA) in one shot. This is the canonical Unsloth inference path
+    # and deliberately avoids transformers' model.load_adapter(), which
+    # KeyErrors on 'qwen2_vl' inside _convert_peft_config_moe on recent
+    # transformers (it assumes every model is MoE).
     model, processor = FastVisionModel.from_pretrained(
-        model_name,
+        adapter_path or model_name,
         load_in_4bit=load_in_4bit,
         max_seq_length=max_seq_length,
         use_gradient_checkpointing="unsloth",
     )
-    if adapter_path:
-        model.load_adapter(adapter_path)
     FastVisionModel.for_inference(model)
     _HANDLE = _ModelHandle(model=model, processor=processor,
                            name=model_name, adapter_path=adapter_path)
