@@ -29,8 +29,8 @@ scripts/                    # CLI entrypoints
   run_inference.py          # writes a submission CSV
   score_cv.py               # composite metric on a prediction CSV
 notebooks/
-  01_inference.ipynb        # Kaggle: install → load → predict → submission.csv
-  02_train_lora.ipynb       # Kaggle: Unsloth QLoRA on prepared data
+  01_train_lora.ipynb       # Kaggle: train LoRA → push adapter to HF Hub
+  02_inference.ipynb        # Kaggle: install → load → predict → submission.csv
 data/cv/                    # committed CV manifests (small JSONL)
 research/                   # reference baselines + EDA notebooks
 ```
@@ -51,7 +51,7 @@ python scripts/prepare_lora_data.py --task transcribe --include-silver
 
 Upload `data/lora/transcribe/` (the JSONL **and** the `_crops_*` directories — the JSONL references crop paths) as a Kaggle dataset for `02_train_lora.ipynb`. Upload `src/`, `scripts/`, and `configs/` as a separate Kaggle dataset (e.g. `htr-source`) for both notebooks.
 
-## Kaggle inference (`notebooks/01_inference.ipynb`)
+## Kaggle inference (`notebooks/02_inference.ipynb`)
 
 Attach datasets:
 - `handwritten-to-data` (competition data, mounted at `/kaggle/input/handwritten-to-data/`)
@@ -68,7 +68,7 @@ Phase-1 toggles live in `configs/pipeline_p1.yaml`:
 
 Re-run scoring after each toggle and lock in what moves the composite.
 
-## Kaggle LoRA fine-tune (`notebooks/02_train_lora.ipynb`)
+## Kaggle LoRA fine-tune (`notebooks/01_train_lora.ipynb`)
 
 Uses Unsloth's `FastVisionModel` + TRL's `SFTTrainer` with the `UnslothVisionDataCollator`. The notebook trains the transcribe head (LoRA r=16, language layers only — vision encoder stays frozen) on the prepared crops and saves an adapter to `/kaggle/working/lora_adapter`.
 
