@@ -115,7 +115,7 @@ def qwen_call(image_b64: str, prompt: str, *,
     try:
         import torch  # noqa: WPS433
 
-        handle = load_model()
+        handle = _HANDLE if _HANDLE is not None else load_model()
         model, processor = handle.model, handle.processor
 
         image = _decode_b64_to_pil(image_b64)
