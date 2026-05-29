@@ -1,0 +1,4 @@
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.1), please consider upgrading to the latest version (2.0.2)
+ref                         title             author            lastRunTime                 totalVotes  
+--------------------------  ----------------  ----------------  --------------------------  ----------  
+dkhodyrev/kaggle-train-htr  kaggle_train_htr  Dmytro Khodyriev  2026-04-17 09:15:25.873000           0  

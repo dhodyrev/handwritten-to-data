@@ -1,0 +1,24 @@
+# Pipeline config. Flags map to htr.pipeline.PipelineConfig.
+# Phase 0: leave all toggles off → baseline parity.
+# Flip individual flags and re-score to ablate.
+
+image:
+  deskew: false              # Phase 1: Hough deskew
+  deskew_max_angle_deg: 10.0
+
+postproc:
+  nms_iou: null              # Phase 1: 0.5 to drop duplicate-line FPs
+
+transcribe:
+  # Per-source crop margin (fraction of bbox dim added on each side)
+  crop_margins:
+    school: 0.05
+    university: 0.05
+    dictation: 0.05
+    archive: 0.03
+    default: 0.05
+  # Phase 1: few-shot examples per rtype: {rtype: [[description, gold_text], ...]}
+  few_shot_examples: {}
+
+routing:
+  math_shortcircuit_min_lines: 3

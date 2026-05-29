@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+.DS_Store
+.ipynb_checkpoints/
+
+# Heavy artifacts — never commit
+data/raw/
+data/cache/
+data/hf_cache/
+outputs/
+predictions/
+submissions/
+checkpoints/
+runs/
+wandb/
+
+# Keep small split manifests
+!data/cv/*.jsonl
+!data/cv/.gitkeep

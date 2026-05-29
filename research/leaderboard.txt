@@ -1,0 +1,24 @@
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.1), please consider upgrading to the latest version (2.0.2)
+Next Page Token = CfDJ8G82xNY93phHtA6xMwIf8xNDx5J4YrFt-x5LY_K9yt9N7zV2X5eVrqVleacVRxy_OgJjZMYeppVoBpqgofizmKE
+  teamId  teamName                        submissionDate              score    
+--------  ------------------------------  --------------------------  -------  
+15907108  Ebi                             2026-05-27 15:58:48.226000  0.91667  
+15629662  Inkognito                       2026-05-27 11:22:37.990000  0.90648  
+15629881  Anton Bazdyrev                  2026-05-19 21:44:31.966000  0.90614  
+15639337  Mark 1                          2026-05-26 21:24:50.390000  0.89647  
+15841245  Dmytro Stepanchuk               2026-05-27 12:29:57.233000  0.88828  
+15759063  Irving Ernesto                  2026-05-14 05:10:35.313000  0.88793  
+15842060  Dmytro Cheshenko                2026-05-19 20:01:06.970000  0.88281  
+15693224  Eldar K.                        2026-05-17 20:15:19.460000  0.88110  
+15840041  Yolo Ukraine VLM Maker Team     2026-05-24 13:24:16.643000  0.87598  
+15632269  Yevhen Azarov                   2026-05-27 14:31:11.640000  0.85456  
+15632716  Are you hello, bro?             2026-05-18 14:21:30.463000  0.84952  
+15870522  lucataco                        2026-05-29 00:27:08.563000  0.83674  
+15734502  Yusaku Muroya                   2026-05-28 17:39:56.943000  0.83530  
+15841767  smallprojects                   2026-05-25 23:54:36.200000  0.83511  
+16044080  Natalia Jaśkowska               2026-05-25 20:36:06.563000  0.83097  
+15784826  Computer Cats` Professional C.  2026-05-28 20:33:01.586000  0.82929  
+15666314  Achim Rabus                     2026-05-18 09:27:34.053000  0.82900  
+15901952  Yelarys Yertaiuly               2026-05-14 11:11:36.260000  0.82078  
+15851427  BoUsToiChoi                     2026-05-29 05:09:41.513000  0.81586  
+15634063  Dantists                        2026-05-07 12:41:05.630000  0.81206  

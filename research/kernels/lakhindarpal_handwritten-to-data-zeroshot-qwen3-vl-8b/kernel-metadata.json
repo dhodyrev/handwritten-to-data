@@ -1,0 +1,23 @@
+{
+  "id": "lakhindarpal/handwritten-to-data-zeroshot-qwen3-vl-8b",
+  "id_no": 115949037,
+  "title": "Handwritten to Data | ZeroShot Qwen3-VL-8B",
+  "code_file": "handwritten-to-data-zeroshot-qwen3-vl-8b.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "handwritten-to-data"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:c370a5ff133d162d17c2dca332b50f3e85c0b0ed1471ee18e98e3009eee80b08",
+  "machine_shape": "None"
+}

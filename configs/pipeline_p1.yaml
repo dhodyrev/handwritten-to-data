@@ -1,0 +1,22 @@
+# Phase 1 ablation preset: all toggles on.
+# Compare vs configs/pipeline.yaml (Phase 0 baseline) on the same val split.
+
+image:
+  deskew: true
+  deskew_max_angle_deg: 8.0
+
+postproc:
+  nms_iou: 0.5
+
+transcribe:
+  crop_margins:
+    school: 0.05
+    university: 0.05
+    dictation: 0.04
+    archive: 0.02
+    default: 0.05
+  # Populate after running scripts/mine_fewshot.py (TODO Phase 1.6).
+  few_shot_examples: {}
+
+routing:
+  math_shortcircuit_min_lines: 3

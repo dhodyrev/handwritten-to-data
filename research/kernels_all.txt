@@ -1,0 +1,15 @@
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.1), please consider upgrading to the latest version (2.0.2)
+ref                                                            title                                            author               lastRunTime                 totalVotes  
+-------------------------------------------------------------  -----------------------------------------------  -------------------  --------------------------  ----------  
+dvoitekh/official-baseline-for-handwritten-to-data             Official baseline for "Handwritten to Data"      Dmitry Voitekh       2026-05-13 09:48:47.117000          30  
+lakhindarpal/handwritten-to-data-zeroshot-qwen3-vl-8b          Handwritten to Data | ZeroShot Qwen3-VL-8B       Lakhindar Pal        2026-04-18 04:56:54.867000          28  
+hmnshudhmn24/handwritten-to-data                               Handwritten to Data                              Himanshu Dhiman      2026-04-17 05:57:20.777000          16  
+dvoitekh/official-evaluation-metric-text-normalization         Official Evaluation Metric & Text Normalization  Dmitry Voitekh       2026-05-19 18:02:08.070000          12  
+anastasiapetrunia/eda-fixing-the-48k-silver-hallucination-bug  [EDA] Fixing the 48k Silver Hallucination Bug 🚨  Anastasiia Petrunia  2026-04-18 17:02:31.277000           8  
+biohack44/yolo-train                                           yolo_train                                       Emre Cirak           2026-05-04 20:24:57.833000           2  
+chaitanyajamble/handwritten-to-data-tf-tr-vlm-2                Handwritten to Data| TF,TR,VLM-2                 Chaitanya Jamble     2026-05-02 11:06:44.403000           2  
+lakshyagodara/detailed-evaluation-metric                       detailed-evaluation-metric                       Lakshya Godara       2026-05-06 18:10:55.827000           1  
+chaitanyajamble/handwritten-to-data                            Handwritten to Data - /                          Chaitanya Jamble     2026-05-02 16:45:01.213000           1  
+dmytroshpak/eda-jpynb                                          eda.jpynb                                        Dmytro Shpak         2026-04-20 22:18:55.687000           1  
+chaitanyajamble/handwritten-to-data-tf-tr-vlm1                 Handwritten to data| TF,TR &VLM1                 Chaitanya Jamble     2026-05-02 09:02:03.673000           0  
+chaitanyajamble/handwritten-to-data-tf-tr-vlm                  Handwritten to Data |TF,TR,VLM                   Chaitanya Jamble     2026-05-02 08:17:32.767000           0  

@@ -1,0 +1,5 @@
+usage: kaggle competitions [-h]
+                           {list,files,download,submit,submissions,leaderboard}
+                           ...
+kaggle competitions: error: argument command: invalid choice: 'discussion' (choose from 'list', 'files', 'download', 'submit', 'submissions', 'leaderboard')
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.1), please consider upgrading to the latest version (2.0.2)
