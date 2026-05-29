@@ -35,30 +35,21 @@ data/cv/                    # committed CV manifests (small JSONL)
 research/                   # reference baselines + EDA notebooks
 ```
 
-## Local (Mac) workflow
+## Workflow
 
-Used for CV-split construction, silver cleaning, few-shot mining, and offline scoring. No GPU needed.
+Two Kaggle notebooks, each self-contained (clones this repo on Kaggle, downloads HF data, no local prep needed). Linked via HuggingFace Hub — the train notebook pushes a LoRA adapter, the inference notebook pulls it.
 
-```bash
-pip install -e .
+### 01. `notebooks/01_train_lora.ipynb` — train LoRA
 
-python scripts/build_cv_split.py           # data/cv/{train,val}.jsonl
-python scripts/clean_silver.py             # data/cv/{train_clean,silver_clean}.jsonl
-python scripts/mine_fewshot.py             # configs/_fewshot.yaml
-python scripts/prepare_lora_data.py --task transcribe --include-silver
-                                           # data/lora/transcribe/{train,val}.jsonl + crops
-```
+Uses Unsloth's `FastVisionModel` + TRL's `SFTTrainer` with `UnslothVisionDataCollator`. Trains the transcribe head (LoRA r=16, language layers only — vision encoder stays frozen) on ~30k crops mined from train + cleaned silver, then `model.push_to_hub(...)` to your HF adapter repo.
 
-Upload `data/lora/transcribe/` (the JSONL **and** the `_crops_*` directories — the JSONL references crop paths) as a Kaggle dataset for `02_train_lora.ipynb`. Upload `src/`, `scripts/`, and `configs/` as a separate Kaggle dataset (e.g. `htr-source`) for both notebooks.
+Setup: Kaggle Secret `HF_TOKEN` (HF write token) attached to the notebook, GPU T4 ×2, Internet On. Edit the two constants in cell 2 if you fork. Runtime ~6–9h.
 
-## Kaggle inference (`notebooks/02_inference.ipynb`)
+### 02. `notebooks/02_inference.ipynb` — write submission
 
-Attach datasets:
-- `handwritten-to-data` (competition data, mounted at `/kaggle/input/handwritten-to-data/`)
-- `htr-source` (this repo's `src/` + `scripts/` + `configs/`)
-- optional: `htr-lora` (LoRA adapter from `02_train_lora.ipynb`)
+Loads Qwen2.5-VL-7B-4bit + the LoRA adapter from HF Hub, runs sync detect → transcribe over the competition test set, writes `/kaggle/working/submission.csv`.
 
-The notebook installs Unsloth + Qwen2.5-VL-7B 4-bit, runs `scripts/run_inference.py` against the test manifest, and writes `/kaggle/working/submission.csv` ready for submission.
+Attach: `handwritten-to-data` (competition data). For private adapter repos add `HF_TOKEN` secret. Set `HF_ADAPTER_REPO = None` in cell 2 to skip the adapter and submit base-model predictions. Runtime ~4–6h.
 
 Phase-1 toggles live in `configs/pipeline_p1.yaml`:
 - `postproc.nms_iou: 0.5` — drops duplicate line bboxes
@@ -66,13 +57,21 @@ Phase-1 toggles live in `configs/pipeline_p1.yaml`:
 - `transcribe.crop_margins` — source-aware crop tightness
 - `transcribe.few_shot_examples` — per-rtype in-context examples (run `mine_fewshot.py` first)
 
-Re-run scoring after each toggle and lock in what moves the composite.
+Switch `CONFIG` in the inference notebook to `configs/pipeline_p1.yaml` to enable.
 
-## Kaggle LoRA fine-tune (`notebooks/01_train_lora.ipynb`)
+## Local (Mac) workflow — optional
 
-Uses Unsloth's `FastVisionModel` + TRL's `SFTTrainer` with the `UnslothVisionDataCollator`. The notebook trains the transcribe head (LoRA r=16, language layers only — vision encoder stays frozen) on the prepared crops and saves an adapter to `/kaggle/working/lora_adapter`.
+Only needed if you want to re-build the CV split, clean silver, or score predictions offline. Pure CPU.
 
-Download the adapter, re-upload as a dataset (`htr-lora`), and point `01_inference.ipynb`'s `ADAPTER` variable at it.
+```bash
+pip install -e .
+python scripts/build_cv_split.py           # → data/cv/{train,val}.jsonl
+python scripts/clean_silver.py             # → data/cv/{train_clean,silver_clean}.jsonl
+python scripts/mine_fewshot.py             # → configs/_fewshot.yaml
+python scripts/score_cv.py --pred ...      # composite metric breakdown
+```
+
+The CV-split + silver-clean JSONLs are committed to the repo, so the training notebook works out-of-the-box without running these locally.
 
 ## Phase 3 — polish
 
