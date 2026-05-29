@@ -14,9 +14,10 @@ Examples:
         --config configs/pipeline_p1.yaml \\
         --out predictions/val_p1.csv
 
-    # Kaggle test set (images mounted at /kaggle/input/handwritten-to-data/test)
+    # Kaggle test set — images auto-downloaded from the HF 'test' split
+    # (the competition only ships sample_submission.csv, not the images).
     python scripts/run_inference.py --manifest data/cv/test.jsonl \\
-        --image-root /kaggle/input/handwritten-to-data/test \\
+        --hf-split test \\
         --out submissions/test_v1.csv
 
     # Load a LoRA adapter on top of the base model
@@ -90,6 +91,9 @@ def main() -> int:
                     help="Read manifest from data/cv/{split}.jsonl (HF auto-download).")
     ap.add_argument("--manifest", help="Explicit JSONL manifest path.")
     ap.add_argument("--image-root", help="Directory holding images (for --manifest).")
+    ap.add_argument("--hf-split", default=None,
+                    help="HF dataset split to auto-download images from for --manifest "
+                         "(e.g. 'test'). Used when --image-root is not given.")
     ap.add_argument("--out", required=True, help="Output submission CSV path.")
     ap.add_argument("--config", default="configs/pipeline.yaml")
     ap.add_argument("--model", default=DEFAULT_MODEL,
@@ -104,7 +108,7 @@ def main() -> int:
     # Resolve manifest
     if args.manifest:
         manifest_path = Path(args.manifest)
-        hf_split = None
+        hf_split = args.hf_split
     else:
         manifest_path = Path("data/cv") / f"{args.split}.jsonl"
         hf_split = "train"
