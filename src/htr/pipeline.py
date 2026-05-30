@@ -76,10 +76,15 @@ def _scale_bbox(bbox: list, w: int, h: int,
                 off_x: int = 0, off_y: int = 0) -> list[int] | None:
     if len(bbox) < 4:
         return None
-    x1 = int(bbox[0] * w / 1000) + off_x
-    y1 = int(bbox[1] * h / 1000) + off_y
-    x2 = int(bbox[2] * w / 1000) + off_x
-    y2 = int(bbox[3] * h / 1000) + off_y
+    try:
+        # The model sometimes emits coords as strings, e.g. ["123", "456"].
+        bx0, bx1, bx2, bx3 = (float(bbox[i]) for i in range(4))
+    except (TypeError, ValueError):
+        return None
+    x1 = int(bx0 * w / 1000) + off_x
+    y1 = int(bx1 * h / 1000) + off_y
+    x2 = int(bx2 * w / 1000) + off_x
+    y2 = int(bx3 * h / 1000) + off_y
     x1, x2 = min(x1, x2), max(x1, x2)
     y1, y2 = min(y1, y2), max(y1, y2)
     if x2 - x1 < 3 or y2 - y1 < 3:
