@@ -187,6 +187,44 @@ def _crop_transcribe(img: Image.Image, bbox: list[int], rtype: str,
     return "[ERROR:parse_failed]"
 
 
+def _crop_transcribe_lines(img: Image.Image, bbox: list[int],
+                           cfg: PipelineConfig, source: str) -> list[str] | None:
+    """Transcribe a whole text block as an ordered list of lines, top-to-bottom.
+    Returns ``None`` on model/parse failure so callers can fall back."""
+    margin = cfg.crop_margins.get(source, cfg.crop_margins.get("default", 0.05))
+    crop = crop_with_margin(img, bbox, margin)
+    crop_b64 = base64.b64encode(encode_jpeg(crop)).decode()
+
+    raw = qwen_call(crop_b64, P.QWEN_TRANSCRIBE_LINES_PROMPT, max_tokens=2048)
+    if raw.startswith("[ERROR:"):
+        return None
+    parsed = parse_json(raw)
+
+    lines: list | None = None
+    if isinstance(parsed, dict):
+        if isinstance(parsed.get("lines"), list):
+            lines = parsed["lines"]
+        elif isinstance(parsed.get("text"), str):
+            lines = parsed["text"].split("\n")
+    elif isinstance(parsed, list):
+        lines = parsed
+    if lines is None:
+        return None
+
+    cleaned = [str(x).strip() for x in lines if str(x).strip()]
+    return cleaned or None
+
+
+def _split_bbox_into_bands(bbox: list[int], n: int) -> list[list[int]]:
+    """Divide a block bbox into ``n`` equal horizontal bands (one per line)."""
+    x1, y1, x2, y2 = bbox
+    if n <= 1:
+        return [[x1, y1, x2, y2]]
+    step = (y2 - y1) / n
+    return [[x1, int(y1 + i * step), x2, int(y1 + (i + 1) * step)]
+            for i in range(n)]
+
+
 # ── Pipeline steps ─────────────────────────────────────────────────────
 
 def _classify_page(b64: str) -> str:
@@ -206,25 +244,17 @@ def _detect_perline(b64: str, source: str,
 
 
 def _lines_in_block(img: Image.Image, block: dict) -> list[RegionTask]:
+    """One task per block. Qwen2.5-VL-7B can't reliably localise individual
+    lines (it returns transcription instead of boxes), so a text_block becomes
+    a single ``multiline`` task — transcription splits it into per-line regions
+    later, where the model's strength (reading) actually applies."""
     btype = block["block_type"]
     bbox = block["bbox"]
 
     if btype == "text_block":
         wtype = block.get("writing_type", "handwritten")
-        img_w, img_h = img.size
-        x1, y1, x2, y2 = bbox
-        mx, my = int((x2 - x1) * 0.03), int((y2 - y1) * 0.03)
-        cx1, cy1 = max(0, x1 - mx), max(0, y1 - my)
-        cx2, cy2 = min(img_w, x2 + mx), min(img_h, y2 + my)
-        crop = img.crop((cx1, cy1, cx2, cy2))
-        crop_w, crop_h = crop.size
-        crop_b64 = base64.b64encode(encode_jpeg(crop)).decode()
-        raw, (src_w, src_h) = qwen_call_geo(crop_b64, P.QWEN_LINE_DETECT_PROMPT)
-        lines = _parse_lines(raw, crop_w, crop_h, src_w, src_h, cx1, cy1)
-        if not lines:
-            return [{"bbox": bbox, "rtype": wtype, "legibility": "legible"}]
-        return [{"bbox": lb, "rtype": wtype, "legibility": "legible"}
-                for lb in lines]
+        return [{"bbox": bbox, "rtype": wtype,
+                 "legibility": "legible", "multiline": True}]
 
     return [{"bbox": bbox, "rtype": btype, "legibility": "legible"}]
 
@@ -263,22 +293,47 @@ def _detect(img: Image.Image, b64: str, source: str,
     return tasks
 
 
+def _mk_region(bbox: list[int], rtype: str,
+               legibility: str, text: str) -> Region:
+    return {
+        "type": rtype,
+        "bbox": bbox,
+        "language": DEFAULT_LANGUAGE,
+        "legibility": legibility,
+        "transcription": text,
+    }
+
+
+def _transcribe_block(img: Image.Image, task: RegionTask,
+                      source: str, cfg: PipelineConfig) -> list[Region]:
+    """Expand a multiline text_block into one region per transcribed line,
+    splitting the block bbox into equal horizontal bands."""
+    bbox, rtype = task["bbox"], task["rtype"]
+    lines = _crop_transcribe_lines(img, bbox, cfg, source)
+    if not lines:
+        # Fall back to a single region with the whole (untruncated) text.
+        text = (_crop_transcribe(img, bbox, rtype, cfg, source) or "").strip()
+        return [_mk_region(bbox, rtype, task["legibility"], text)]
+    bands = _split_bbox_into_bands(bbox, len(lines))
+    return [_mk_region(b, rtype, "legible", ln)
+            for b, ln in zip(bands, lines)]
+
+
 def _transcribe(img: Image.Image, tasks: list[RegionTask],
                 source: str, cfg: PipelineConfig) -> list[Region]:
     regions: list[Region] = []
     for t in tasks:
+        if t.get("multiline") and t["rtype"] in ("handwritten", "printed"):
+            regions.extend(_transcribe_block(img, t, source, cfg))
+            continue
         if t["rtype"] in ("image", "graph") or t["legibility"] == "illegible":
             text = ""
         else:
             text = _crop_transcribe(img, t["bbox"], t["rtype"], cfg, source)
             text = (text or "").split("\n")[0].strip()
-        regions.append({
-            "type": t["rtype"],
-            "bbox": t["bbox"],
-            "language": DEFAULT_LANGUAGE,
-            "legibility": t["legibility"],
-            "transcription": text,
-        })
+        regions.append(
+            _mk_region(t["bbox"], t["rtype"], t["legibility"], text)
+        )
     return regions
 
 

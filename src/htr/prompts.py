@@ -98,6 +98,25 @@ RULES:
 Return JSON: {"text": "..."}"""
 
 
+QWEN_TRANSCRIBE_LINES_PROMPT = """Transcribe EVERY handwritten text line in this image, top to bottom.
+
+RULES:
+- One JSON array entry per visual line (one written row = one entry). Do NOT merge
+  two lines into one entry; do NOT split one line across entries.
+- Transcribe ONLY text physically written here. No completion from memory.
+- If you cannot read a word, write the LETTERS you see — do NOT substitute a
+  similar real word from context.
+- Numbered list lines start with a DIGIT + period ("1.", "2.", "10."). Never a
+  Cyrillic letter (а., в.) when it is clearly a digit.
+- Ukrainian Cyrillic ONLY, never Latin. These glyphs are Cyrillic, not Latin:
+  В Н С Р Т К Е О А М Х.
+- Edge cut-off: keep the visible part with a hyphen ("вирі-"). Crossed-out:
+  ~~text~~ or ~~old~~{new}.
+- Inline formulas: plain text with spacing ("2x + 3 = 7", "H₂SO₄").
+
+Return JSON: {"lines": ["first line", "second line", "..."]}"""
+
+
 QWEN_FORMULA_PROMPT = """Transcribe this handwritten math/chemistry formula exactly as written.
 
 Examples of correct transcription:

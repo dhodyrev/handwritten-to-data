@@ -65,10 +65,11 @@ TRANSCRIBE_SCHEMA = {
 
 # ── In-process pipeline state types ────────────────────────────────────
 
-class RegionTask(TypedDict):
+class RegionTask(TypedDict, total=False):
     bbox: list[int]
     rtype: str       # handwritten|printed|formula|table|annotation|image|graph
     legibility: str  # legible|illegible
+    multiline: bool  # text_block to transcribe as N lines + split into bands
 
 
 class Region(TypedDict):
