@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from PIL import Image
 
 from . import prompts as P
-from .backend import DEFAULT_LANGUAGE, log, qwen_call
+from .backend import DEFAULT_LANGUAGE, log, qwen_call, qwen_call_geo
 from .image_ops import (
     crop_with_margin,
     deskew,
@@ -72,19 +72,26 @@ def parse_json(raw: str) -> list | dict | None:
         return None
 
 
-def _scale_bbox(bbox: list, w: int, h: int,
+def _scale_bbox(bbox: list, dst_w: int, dst_h: int,
+                src_w: int, src_h: int,
                 off_x: int = 0, off_y: int = 0) -> list[int] | None:
-    if len(bbox) < 4:
+    """Map a Qwen2.5-VL grounding box onto the original image.
+
+    The model emits boxes in absolute pixels of the processor's smart-resized
+    frame (``src_w×src_h``); rescale to the original ``dst_w×dst_h`` image and
+    add ``off_x/off_y`` to lift a crop-local box back into page coordinates.
+    """
+    if len(bbox) < 4 or src_w <= 0 or src_h <= 0:
         return None
     try:
         # The model sometimes emits coords as strings, e.g. ["123", "456"].
         bx0, bx1, bx2, bx3 = (float(bbox[i]) for i in range(4))
     except (TypeError, ValueError):
         return None
-    x1 = int(bx0 * w / 1000) + off_x
-    y1 = int(bx1 * h / 1000) + off_y
-    x2 = int(bx2 * w / 1000) + off_x
-    y2 = int(bx3 * h / 1000) + off_y
+    x1 = int(bx0 * dst_w / src_w) + off_x
+    y1 = int(bx1 * dst_h / src_h) + off_y
+    x2 = int(bx2 * dst_w / src_w) + off_x
+    y2 = int(bx3 * dst_h / src_h) + off_y
     x1, x2 = min(x1, x2), max(x1, x2)
     y1, y2 = min(y1, y2), max(y1, y2)
     if x2 - x1 < 3 or y2 - y1 < 3:
@@ -105,11 +112,12 @@ def _items_from_payload(raw: str, *keys: str) -> list:
     return []
 
 
-def _parse_blocks(raw: str, img_w: int, img_h: int) -> list[dict]:
+def _parse_blocks(raw: str, img_w: int, img_h: int,
+                  src_w: int, src_h: int) -> list[dict]:
     blocks = []
     for item in _items_from_payload(raw, "blocks", "regions"):
         bbox = item.get("bbox_2d", item.get("bbox", []))
-        scaled = _scale_bbox(bbox, img_w, img_h)
+        scaled = _scale_bbox(bbox, img_w, img_h, src_w, src_h)
         if scaled is None:
             continue
         blocks.append({
@@ -121,21 +129,23 @@ def _parse_blocks(raw: str, img_w: int, img_h: int) -> list[dict]:
 
 
 def _parse_lines(raw: str, crop_w: int, crop_h: int,
+                 src_w: int, src_h: int,
                  off_x: int, off_y: int) -> list[list[int]]:
     out: list[list[int]] = []
     for item in _items_from_payload(raw, "lines", "blocks"):
         bbox = item.get("bbox_2d", item.get("bbox", item)) if isinstance(item, dict) else item
-        scaled = _scale_bbox(bbox, crop_w, crop_h, off_x, off_y)
+        scaled = _scale_bbox(bbox, crop_w, crop_h, src_w, src_h, off_x, off_y)
         if scaled is not None:
             out.append(scaled)
     return out
 
 
-def _parse_perline(raw: str, img_w: int, img_h: int) -> list[RegionTask]:
+def _parse_perline(raw: str, img_w: int, img_h: int,
+                   src_w: int, src_h: int) -> list[RegionTask]:
     tasks: list[RegionTask] = []
     for item in _items_from_payload(raw, "blocks", "lines", "regions"):
         bbox = item.get("bbox_2d", item.get("bbox", []))
-        scaled = _scale_bbox(bbox, img_w, img_h)
+        scaled = _scale_bbox(bbox, img_w, img_h, src_w, src_h)
         if scaled is None:
             continue
         block_type = item.get("block_type", "text_block")
@@ -191,8 +201,8 @@ def _detect_perline(b64: str, source: str,
                     img_w: int, img_h: int) -> list[RegionTask]:
     prompt = (P.QWEN_UNIVERSITY_PERLINE_PROMPT if source == "university"
               else P.QWEN_SCHOOL_PERLINE_PROMPT)
-    raw = qwen_call(b64, prompt)
-    return _parse_perline(raw, img_w, img_h)
+    raw, (src_w, src_h) = qwen_call_geo(b64, prompt)
+    return _parse_perline(raw, img_w, img_h, src_w, src_h)
 
 
 def _lines_in_block(img: Image.Image, block: dict) -> list[RegionTask]:
@@ -209,8 +219,8 @@ def _lines_in_block(img: Image.Image, block: dict) -> list[RegionTask]:
         crop = img.crop((cx1, cy1, cx2, cy2))
         crop_w, crop_h = crop.size
         crop_b64 = base64.b64encode(encode_jpeg(crop)).decode()
-        raw = qwen_call(crop_b64, P.QWEN_LINE_DETECT_PROMPT)
-        lines = _parse_lines(raw, crop_w, crop_h, cx1, cy1)
+        raw, (src_w, src_h) = qwen_call_geo(crop_b64, P.QWEN_LINE_DETECT_PROMPT)
+        lines = _parse_lines(raw, crop_w, crop_h, src_w, src_h, cx1, cy1)
         if not lines:
             return [{"bbox": bbox, "rtype": wtype, "legibility": "legible"}]
         return [{"bbox": lb, "rtype": wtype, "legibility": "legible"}
@@ -238,8 +248,8 @@ def _detect(img: Image.Image, b64: str, source: str,
                 return tasks
             log(f"    per-line yielded {len(tasks)}, falling back to block→line")
 
-    raw = qwen_call(b64, P.QWEN_BLOCK_DETECT_PROMPT)
-    blocks = _parse_blocks(raw, img_w, img_h)
+    raw, (src_w, src_h) = qwen_call_geo(b64, P.QWEN_BLOCK_DETECT_PROMPT)
+    blocks = _parse_blocks(raw, img_w, img_h, src_w, src_h)
     log(f"    blocks: {len(blocks)}")
     tasks: list[RegionTask] = []
     for b in blocks:

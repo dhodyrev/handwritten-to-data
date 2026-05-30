@@ -101,10 +101,17 @@ def _strip(raw: str) -> str:
     return raw
 
 
-def qwen_call(image_b64: str, prompt: str, *,
-              schema: dict | None = None,
-              max_tokens: int = 4000) -> str:
-    """Run Qwen3-VL on one image + prompt. Returns raw text or ``[ERROR:*]``.
+def qwen_call_geo(image_b64: str, prompt: str, *,
+                  schema: dict | None = None,
+                  max_tokens: int = 4000) -> tuple[str, tuple[int, int]]:
+    """Run Qwen2.5-VL on one image + prompt.
+
+    Returns ``(raw_text, (resized_w, resized_h))``. Qwen2.5-VL emits grounding
+    boxes in **absolute pixels of the processor's smart-resized frame**, not the
+    0-1000 normalised space Qwen2-VL used — so detection callers need those
+    resized dims to map boxes back onto the original image. ``resized_*`` is
+    derived from ``image_grid_thw`` (patch grid × 14px). On failure the dims are
+    ``(0, 0)`` and the text is an ``[ERROR:*]`` sentinel.
 
     ``schema`` is accepted for signature compatibility with the old vLLM
     guided_json path — Unsloth does not enforce it, so it's ignored. Callers
@@ -130,6 +137,11 @@ def qwen_call(image_b64: str, prompt: str, *,
             text=[text], images=[image], return_tensors="pt", padding=True,
         ).to(model.device)
 
+        # image_grid_thw is (t, grid_h, grid_w) in 14px patch units; the
+        # smart-resized frame the model "sees" is grid * 14 pixels.
+        _t, gh, gw = (int(v) for v in inputs["image_grid_thw"][0].tolist())
+        resized = (gw * 14, gh * 14)
+
         with torch.inference_mode():
             out = model.generate(
                 **inputs,
@@ -140,10 +152,21 @@ def qwen_call(image_b64: str, prompt: str, *,
             )
         gen = out[:, inputs["input_ids"].shape[1]:]
         decoded = processor.batch_decode(gen, skip_special_tokens=True)[0]
-        return _strip(decoded)
+        return _strip(decoded), resized
     except Exception as e:  # noqa: BLE001 — never raise into pipeline
         log(f"    QWEN failed: {str(e)[:160]}")
-        return "[ERROR:qwen_failed]"
+        return "[ERROR:qwen_failed]", (0, 0)
+
+
+def qwen_call(image_b64: str, prompt: str, *,
+              schema: dict | None = None,
+              max_tokens: int = 4000) -> str:
+    """Text-only wrapper over :func:`qwen_call_geo` for non-detection calls
+    (transcription, page classification) that don't need box coordinates."""
+    text, _resized = qwen_call_geo(
+        image_b64, prompt, schema=schema, max_tokens=max_tokens,
+    )
+    return text
 
 
 __all__ = [
@@ -154,4 +177,5 @@ __all__ = [
     "load_model",
     "log",
     "qwen_call",
+    "qwen_call_geo",
 ]
